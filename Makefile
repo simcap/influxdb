@@ -1,6 +1,6 @@
-NAME=influx
-REPO_URL=github.com/influxdb/influxdb
-VERSION=0.9.5
+NAME = influx
+REPO_URL = github.com/influxdb/influxdb
+VERSION ?= 0.9.5
 
 ####################
 ## GIT PARAMETERS ##
