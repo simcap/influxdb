@@ -111,10 +111,17 @@ def build(version=None,
     print "\t- arch: {}".format(arch)
     print "\t- nightly? {}".format(str(nightly).lower())
     print ""
-    if nightly:
-        print "-> influxdb_{}-nightly-{}.deb".format(version, commit)
-    else:
-        print "-> influxdb_{}.deb".format(version)
+
+    if rc:
+        version = "{}rc{}".format(version, rc)
+    make_command = "make build VERSION={} NIGHTLY={}".format(version, str(nightly).lower())
+    # if nightly:
+    #     print "-> influxdb_{}-nightly-{}.deb".format(version, commit)
+    # else:
+    #     print "-> influxdb_{}.deb".format(version)
+    print "Building binaries...",
+    out = run(make_command)
+    print "done!"
 
 def main():
     print ""
@@ -142,7 +149,7 @@ def main():
         elif '--platform' in arg:
             target_platform = arg.split("=")[1]
         elif '--version' in arg:
-            target_version = arg.split("=")[1]
+            version = arg.split("=")[1]
         elif '--rc' in arg:
             rc = arg.split("=")[1]            
         elif '--nightly' in arg:
