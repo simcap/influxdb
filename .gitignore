@@ -73,3 +73,5 @@ integration/migration_data/
 
 // Ingnore SourceGraph directory
 .srclib-store/
+
+target/
