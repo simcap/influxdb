@@ -6,6 +6,7 @@ import subprocess
 import time
 
 prereqs = [ 'git', 'go' ]
+optional_prereqs = [ 'gvm', 'fpm', 'awscmd' ]
 
 targets = {
     'influx' : './cmd/influx/main.go',
@@ -13,6 +14,9 @@ targets = {
     'influx_stress' : './cmd/influx_stress/influx_stress.go',
     'influx_inspect' : './cmd/influx_inspect/*.go',
 }
+
+supported_platforms = [ 'darwin', 'windows', 'linux' ]
+supported_archs = [ 'amd64', '386', 'arm' ]
 
 def run(command, allow_failure=False, shell=False):
     out = None
@@ -104,6 +108,13 @@ def check_prereqs():
             print "{}".format(path)
         else:
             print "?"
+    for req in optional_prereqs:
+        print "\t- {} (optional) ->".format(req),
+        path = check_path_for(req)
+        if path:
+            print "{}".format(path)
+        else:
+            print "?"
     print ""
 
 def build(version=None,
@@ -119,7 +130,7 @@ def build(version=None,
     print "\t- version: {}".format(version)
     if rc:
         print "\t- release candidate: {}".format(rc)
-    print "\t- commit: {}".format(commit)
+    print "\t- commit:{}".format(commit)
     print "\t- branch: {}".format(branch)
     print "\t- platform: {}".format(platform)
     print "\t- arch: {}".format(arch)
@@ -140,11 +151,16 @@ def build(version=None,
     print "Starting build:"
     for b, c in targets.iteritems():
         print "\t- Building '{}'...".format(b),
-        env_flags = "GOOS={} GOOARCH={}".format(platform, arch)
-        ld_flags = "-X main.version={} -X main.branch={} -X main.commit={}".format(version,
-                                                                                   branch,
-                                                                                   get_current_commit())
-        build_command = "{} go build -o {} -ldflags=\"{}\" {}".format(env_flags, b, ld_flags, c)
+        build_command = ""
+        build_command += "GOOS={} GOOARCH={} ".format(platform, arch)
+        build_command += "go build -o {} ".format(b)
+        # Receiving errors when including the race flag. Skipping for now.
+        # if race:
+        #     build_command += "-race "
+        build_command += "-ldflags=\"-X main.version={} -X main.branch={} -X main.commit={}\" ".format(version,
+                                                                                                       branch,
+                                                                                                       get_current_commit())
+        build_command += c
         out = run(build_command, shell=True)
         print "[ DONE ]"
     print ""
@@ -217,15 +233,21 @@ def main():
     if target_arch == "x86_64":
         target_arch = "amd64"
     
-    build(version=version,
-          branch=branch,
-          commit=commit,
-          platform=target_platform,
-          arch=target_arch,
-          nightly=nightly,
-          nightly_version=nightly_version,
-          rc=rc,
-          race=race)
+    # prepare(branch=branch, commit=commit)
+    if platform == 'all' or arch == 'all':
+        # Create multiple builds
+        pass
+    else:
+        # Create single build
+        build(version=version,
+              branch=branch,
+              commit=commit,
+              platform=target_platform,
+              arch=target_arch,
+              nightly=nightly,
+              nightly_version=nightly_version,
+              rc=rc,
+              race=race)
 
 if __name__ == '__main__':
     main()
