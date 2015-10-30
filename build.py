@@ -4,18 +4,20 @@ import sys
 import os
 import subprocess
 import time
+import shutil
 
 # PACKAGING VARIABLES
 INSTALL_ROOT_DIR = "/usr/bin"
 LOG_DIR = "/var/log/influxdb"
 DATA_DIR = "/var/lib/influxdb"
-SCRIPT_DIR = "/usr/lib/influxdb"
+SCRIPT_DIR = "/usr/lib/influxdb/scripts"
 CONFIG_DIR = "/etc/influxdb"
 LOGROTATE_DIR = "/etc/logrotate.d"
 
 INIT_SCRIPT = "scripts/init.sh"
 SYSTEMD_SCRIPT = "scripts/influxdb.service"
 LOGROTATE_SCRIPT = "scripts/logrotate"
+CONFIG_SAMPLE = "etc/config.sample.toml"
 PREINST_SCRIPT = None
 POSTINST_SCRIPT = None
 
@@ -24,11 +26,13 @@ PACKAGE_LICENSE = "MIT"
 PACKAGE_URL = "influxdata.com"
 MAINTAINER = "support@influxdata.com"
 VENDOR = "InfluxData"
-DISTRIBUTION = "A distributed time-series database"
+DESCRIPTION = "A distributed time-series database"
 
 # SCRIPT START
 prereqs = [ 'git', 'go' ]
-optional_prereqs = [ 'gvm', 'fpm', 'awscmd' ]
+optional_prereqs = [ 'gvm', 'fpm', 'awscmd', 'rpmbuild' ]
+
+fpm_common_args = "-s dir --log error  --vendor {} --url {} --license {} --maintainer {} --name influxdb --config-files {} --config-files {} --description \"{}\"".format(VENDOR, PACKAGE_URL, PACKAGE_LICENSE, MAINTAINER, CONFIG_DIR, LOGROTATE_DIR, DESCRIPTION)
 
 targets = {
     'influx' : './cmd/influx/main.go',
@@ -193,25 +197,58 @@ def build(version=None,
         print "[ DONE ]"
     print ""
 
+def create_dir(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        print e
 
-def build_packages(build_output):
+def move_file(fr, to):
+    try:
+        os.rename(fr, to)
+    except OSError as e:
+        print e
+
+def create_package_fs(build_root):
+    print "\t- Creating a filesystem hierarchy from directory: {}".format(build_root)
+    # Using [1:] for the path names due to them being absolute
+    create_dir(os.path.join(build_root, INSTALL_ROOT_DIR[1:]))
+    create_dir(os.path.join(build_root, LOG_DIR[1:]))
+    create_dir(os.path.join(build_root, DATA_DIR[1:]))
+    create_dir(os.path.join(build_root, SCRIPT_DIR[1:]))
+    create_dir(os.path.join(build_root, CONFIG_DIR[1:]))
+    create_dir(os.path.join(build_root, LOGROTATE_DIR[1:]))
+
+def package_scripts(build_root):
+    print "\t- Copying scripts and sample configuration to build directory"
+    shutil.copyfile(INIT_SCRIPT, os.path.join(build_root, SCRIPT_DIR[1:], INIT_SCRIPT.split('/')[1]))
+    shutil.copyfile(SYSTEMD_SCRIPT, os.path.join(build_root, SCRIPT_DIR[1:], SYSTEMD_SCRIPT.split('/')[1]))
+    shutil.copyfile(LOGROTATE_SCRIPT, os.path.join(build_root, SCRIPT_DIR[1:], LOGROTATE_SCRIPT.split('/')[1]))
+    shutil.copyfile(CONFIG_SAMPLE, os.path.join(build_root, CONFIG_DIR[1:], CONFIG_SAMPLE.split('/')[1]))
+    
+def build_packages(build_output, version):
     TMP_BUILD_DIR = create_temp_dir()
     print "Packaging..."
     for p in build_output:
-        os.mkdir(os.path.join(TMP_BUILD_DIR, p))
+        create_dir(os.path.join(TMP_BUILD_DIR, p))
         for a in build_output[p]:
-            os.mkdir(os.path.join(TMP_BUILD_DIR, p, a))
             BUILD_ROOT = os.path.join(TMP_BUILD_DIR, p, a)
+            create_dir(BUILD_ROOT)
+            create_package_fs(BUILD_ROOT)
+            package_scripts(BUILD_ROOT)
             current_location = build_output[p][a]
             for b in targets:
-                print "\t- [{}][{}] - Moving '{}/{}' to '{}{}'".format(p,
-                                                                       a,
-                                                                       current_location,
-                                                                       b,
-                                                                       BUILD_ROOT,
-                                                                       INSTALL_ROOT_DIR)
+                fr = os.path.join(current_location, b)
+                to = os.path.join(BUILD_ROOT, INSTALL_ROOT_DIR[1:], b)
+                print "\t- [{}][{}] - Moving from '{}' to '{}'".format(p, a, fr, to)
+                move_file(fr, to)
             for package_type in supported_packages[p]:
                 print "\t- Packaging directory '{}' as '{}'...".format(BUILD_ROOT, package_type),
+                fpm_command = "fpm {} -t {} --version {} -C {}".format(fpm_common_args,
+                                                                       package_type,
+                                                                       version,
+                                                                       BUILD_ROOT)
+                out = run(fpm_command, shell=True)
                 print "[ DONE ]"
     print ""
     
@@ -310,7 +347,7 @@ def main():
         if not check_path_for("fpm"):
             print "!! Cannot package without command 'fpm'. Stopping."
             sys.exit(1)
-        build_packages(build_output)
+        build_packages(build_output, version)
 
 if __name__ == '__main__':
     main()
