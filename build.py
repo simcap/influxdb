@@ -5,6 +5,28 @@ import os
 import subprocess
 import time
 
+# PACKAGING VARIABLES
+INSTALL_ROOT_DIR = "/usr/bin"
+LOG_DIR = "/var/log/influxdb"
+DATA_DIR = "/var/lib/influxdb"
+SCRIPT_DIR = "/usr/lib/influxdb"
+CONFIG_DIR = "/etc/influxdb"
+LOGROTATE_DIR = "/etc/logrotate.d"
+
+INIT_SCRIPT = "scripts/init.sh"
+SYSTEMD_SCRIPT = "scripts/influxdb.service"
+LOGROTATE_SCRIPT = "scripts/logrotate"
+PREINST_SCRIPT = None
+POSTINST_SCRIPT = None
+
+# META-PACKAGE VARIABLES
+PACKAGE_LICENSE = "MIT"
+PACKAGE_URL = "influxdata.com"
+MAINTAINER = "support@influxdata.com"
+VENDOR = "InfluxData"
+DISTRIBUTION = "A distributed time-series database"
+
+# SCRIPT START
 prereqs = [ 'git', 'go' ]
 optional_prereqs = [ 'gvm', 'fpm', 'awscmd' ]
 
@@ -17,6 +39,12 @@ targets = {
 
 supported_platforms = [ 'darwin', 'windows', 'linux' ]
 supported_archs = [ 'amd64', '386', 'arm' ]
+supported_go = [ '1.5.1' ]
+supported_packages = {
+    "darwin": [ "tar", "zip" ],
+    "linux": [ "deb", "rpm", "tar.gz", "zip" ],
+    "windows": [ "tar", "zip" ],
+}
 
 def run(command, allow_failure=False, shell=False):
     out = None
@@ -126,11 +154,11 @@ def build(version=None,
           nightly_version=None,
           rc=None,
           race=False):
-    print "Building for:"
+    print "Building for..."
     print "\t- version: {}".format(version)
     if rc:
         print "\t- release candidate: {}".format(rc)
-    print "\t- commit:{}".format(commit)
+    print "\t- commit: {}".format(commit)
     print "\t- branch: {}".format(branch)
     print "\t- platform: {}".format(platform)
     print "\t- arch: {}".format(arch)
@@ -148,7 +176,7 @@ def build(version=None,
                                                                           arch,
                                                                           version,
                                                                           str(nightly).lower())    
-    print "Starting build:"
+    print "Starting build..."
     for b, c in targets.iteritems():
         print "\t- Building '{}'...".format(b),
         build_command = ""
@@ -165,6 +193,28 @@ def build(version=None,
         print "[ DONE ]"
     print ""
 
+
+def build_packages(build_output):
+    TMP_BUILD_DIR = create_temp_dir()
+    print "Packaging..."
+    for p in build_output:
+        os.mkdir(os.path.join(TMP_BUILD_DIR, p))
+        for a in build_output[p]:
+            os.mkdir(os.path.join(TMP_BUILD_DIR, p, a))
+            BUILD_ROOT = os.path.join(TMP_BUILD_DIR, p, a)
+            current_location = build_output[p][a]
+            for b in targets:
+                print "\t- [{}][{}] - Moving '{}/{}' to '{}{}'".format(p,
+                                                                       a,
+                                                                       current_location,
+                                                                       b,
+                                                                       BUILD_ROOT,
+                                                                       INSTALL_ROOT_DIR)
+            for package_type in supported_packages[p]:
+                print "\t- Packaging directory '{}' as '{}'...".format(BUILD_ROOT, package_type),
+                print "[ DONE ]"
+    print ""
+    
 def main():
     print ""
     print "--- InfluxDB Builder ---"
@@ -181,6 +231,7 @@ def main():
     branch = None
     version = "0.9.5"
     rc = None
+    package = False
     
     for arg in sys.argv:
         if '--outdir' in arg:
@@ -207,6 +258,9 @@ def main():
         elif '--race' in arg:
             # Signifies that race detection should be enabled.
             race = True
+        elif '--package' in arg:
+            # Signifies that race detection should be enabled.
+            package = True
         elif '--nightly' in arg:
             # Signifies that this is a nightly build.
             nightly = True
@@ -232,9 +286,11 @@ def main():
 
     if target_arch == "x86_64":
         target_arch = "amd64"
-    
+
+    build_output = {}
+    # TODO(rossmcdonald): Prepare git repo for build (checking out correct branch/commit, etc.)
     # prepare(branch=branch, commit=commit)
-    if platform == 'all' or arch == 'all':
+    if target_platform == 'all' or target_arch == 'all':
         # Create multiple builds
         pass
     else:
@@ -248,6 +304,13 @@ def main():
               nightly_version=nightly_version,
               rc=rc,
               race=race)
+        build_output.update( { target_platform : { target_arch : '.' } } )
+
+    if package:
+        if not check_path_for("fpm"):
+            print "!! Cannot package without command 'fpm'. Stopping."
+            sys.exit(1)
+        build_packages(build_output)
 
 if __name__ == '__main__':
     main()
