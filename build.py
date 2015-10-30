@@ -4,6 +4,7 @@ import sys
 import os
 import subprocess
 import time
+import datetime
 import shutil
 
 # PACKAGING VARIABLES
@@ -189,9 +190,10 @@ def build(version=None,
         # Receiving errors when including the race flag. Skipping for now.
         # if race:
         #     build_command += "-race "
-        build_command += "-ldflags=\"-X main.version={} -X main.branch={} -X main.commit={}\" ".format(version,
-                                                                                                       branch,
-                                                                                                       get_current_commit())
+        build_command += "-ldflags=\"-X main.buildTime='{}' ".format(datetime.utcnow().isoformat())
+        build_command += "-X main.version={} ".format(version)
+        build_command += "-X main.branch={} ".format(branch)
+        build_command += "-X main.commit={}\" ".format(get_current_commit())
         build_command += c
         out = run(build_command, shell=True)
         print "[ DONE ]"
