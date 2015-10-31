@@ -47,7 +47,7 @@ supported_archs = [ 'amd64', '386', 'arm' ]
 supported_go = [ '1.5.1' ]
 supported_packages = {
     "darwin": [ "tar", "zip" ],
-    "linux": [ "deb", "rpm", "tar.gz", "zip" ],
+    "linux": [ "deb", "rpm", "tar", "zip" ],
     "windows": [ "tar", "zip" ],
 }
 
