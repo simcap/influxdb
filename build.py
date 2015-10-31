@@ -62,7 +62,7 @@ def run(command, allow_failure=False, shell=False):
         print ""
         print "Executed command failed!"
         print "-- Command run was: {}".format(command)
-        print "-- Failure was: {}".format(e)
+        print "-- Failure was: {}".format(e.output)
         if allow_failure:
             print "Continuing..."
             return out
@@ -74,7 +74,7 @@ def run(command, allow_failure=False, shell=False):
         print ""
         print "Invalid command!"
         print "-- Command run was: {}".format(command)
-        print "-- Failure was: {}".format(e)
+        print "-- Failure was: {}".format(e.output)
         if allow_failure:
             print "Continuing..."
             return out
