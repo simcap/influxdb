@@ -26,12 +26,12 @@ test -h /etc/init.d/influxdb && rm -f /etc/init.d/influxdb
 
 # Systemd
 if which systemctl > /dev/null 2>&1 ; then
-    cp $SCRIPT_DIR/init.sh /lib/systemd/system/influxdb.service
+    cp $SCRIPT_DIR/influxdb.service /lib/systemd/system/influxdb.service
     systemctl enable influxdb
 
 # Sysv
 else
-    cp -f $SCRIPT_DIR/influxdb.service /etc/init.d/influxdb
+    cp -f $SCRIPT_DIR/init.sh /etc/init.d/influxdb
     chmod +x /etc/init.d/influxdb
     if which update-rc.d > /dev/null 2>&1 ; then
         update-rc.d -f influxdb remove

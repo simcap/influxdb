@@ -17,10 +17,10 @@ LOGROTATE_DIR = "/etc/logrotate.d"
 
 INIT_SCRIPT = "scripts/init.sh"
 SYSTEMD_SCRIPT = "scripts/influxdb.service"
+POSTINST_SCRIPT = "scripts/post-install.sh"
 LOGROTATE_SCRIPT = "scripts/logrotate"
 CONFIG_SAMPLE = "etc/config.sample.toml"
 PREINST_SCRIPT = None
-POSTINST_SCRIPT = None
 
 # META-PACKAGE VARIABLES
 PACKAGE_LICENSE = "MIT"
@@ -33,7 +33,7 @@ DESCRIPTION = "A distributed time-series database"
 prereqs = [ 'git', 'go' ]
 optional_prereqs = [ 'gvm', 'fpm', 'awscmd', 'rpmbuild' ]
 
-fpm_common_args = "-s dir --log error  --vendor {} --url {} --license {} --maintainer {} --name influxdb --config-files {} --config-files {} --description \"{}\"".format(VENDOR, PACKAGE_URL, PACKAGE_LICENSE, MAINTAINER, CONFIG_DIR, LOGROTATE_DIR, DESCRIPTION)
+fpm_common_args = "-s dir --log error  --vendor {} --url {} --after-install {} --license {} --maintainer {} --name influxdb --config-files {} --config-files {} --description \"{}\"".format(VENDOR, PACKAGE_URL, POSTINST_SCRIPT, PACKAGE_LICENSE, MAINTAINER, CONFIG_DIR, LOGROTATE_DIR, DESCRIPTION)
 
 targets = {
     'influx' : './cmd/influx/main.go',
@@ -190,7 +190,7 @@ def build(version=None,
         # Receiving errors when including the race flag. Skipping for now.
         # if race:
         #     build_command += "-race "
-        build_command += "-ldflags=\"-X main.buildTime='{}' ".format(datetime.utcnow().isoformat())
+        build_command += "-ldflags=\"-X main.buildTime='{}' ".format(datetime.datetime.utcnow().isoformat())
         build_command += "-X main.version={} ".format(version)
         build_command += "-X main.branch={} ".format(branch)
         build_command += "-X main.commit={}\" ".format(get_current_commit())
@@ -306,9 +306,12 @@ def main():
             # In order to support nightly builds on the repository, we are adding the epoch timestamp
             # to the version so that seamless upgrades are possible.
             if len(version) <= 5:
-                version = "{}.0.{}".format(version, int(time.time()))
+                version = "{}.0.n{}".format(version, int(time.time()))
             else:
-                version = "{}.{}".format(version, int(time.time()))
+                version = "{}.n{}".format(version, int(time.time()))
+        else:
+            print "!! Unknown argument: {}".format(arg)
+            sys.exit(1)
 
     if nightly and rc:
         print "!! Cannot be both nightly and a release candidate! Stopping."
