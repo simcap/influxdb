@@ -158,7 +158,8 @@ def build(version=None,
           nightly=False,
           nightly_version=None,
           rc=None,
-          race=False):
+          race=False,
+          update=False):
     print "Building for..."
     print "\t- version: {}".format(version)
     if rc:
@@ -174,8 +175,16 @@ def build(version=None,
     if rc:
         # If a release candidate, update the version information accordingly
         version = "{}rc{}".format(version, rc)
+
+    get_command = None
+    if update:
+        get_command = "go get -u -f -d ./..."
+    else:
+        get_command = "go get -d ./..."        
+    print "Retrieving Go dependencies...",
+    run(get_command)
+    print "done."
     
-    get_command = "go get -d ./..."
     checkout_command = "git checkout {}".format(commit)
     make_command = "make dist OS_ARCH={}/{} VERSION={} NIGHTLY={}".format(platform,
                                                                           arch,
@@ -271,8 +280,9 @@ def main():
     version = "0.9.5"
     rc = None
     package = False
+    update = False
     
-    for arg in sys.argv:
+    for arg in sys.argv[1:]:
         if '--outdir' in arg:
             # Output directory. If none is specified, then builds will be placed in the same directory.
             output_dir = arg.split("=")[1]
@@ -309,6 +319,9 @@ def main():
                 version = "{}.0.n{}".format(version, int(time.time()))
             else:
                 version = "{}.n{}".format(version, int(time.time()))
+        elif '--update' in arg:
+            # Signifies that race detection should be enabled.
+            update = True            
         else:
             print "!! Unknown argument: {}".format(arg)
             sys.exit(1)
@@ -345,7 +358,8 @@ def main():
               nightly=nightly,
               nightly_version=nightly_version,
               rc=rc,
-              race=race)
+              race=race,
+              update=update)
         build_output.update( { target_platform : { target_arch : '.' } } )
 
     if package:
