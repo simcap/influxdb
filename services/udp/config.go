@@ -11,10 +11,10 @@ const (
 	DefaultDatabase = "udp"
 
 	// DefaultBatchSize is the default UDP batch size.
-	DefaultBatchSize = 1000
+	DefaultBatchSize = 5000
 
 	// DefaultBatchPending is the default number of pending UDP batches.
-	DefaultBatchPending = 5
+	DefaultBatchPending = 10
 
 	// DefaultBatchTimeout is the default UDP batch timeout.
 	DefaultBatchTimeout = time.Second
